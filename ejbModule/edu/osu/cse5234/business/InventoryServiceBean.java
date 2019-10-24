@@ -4,10 +4,12 @@ import edu.osu.cse5234.business.view.Inventory;
 import edu.osu.cse5234.business.view.InventoryService;
 import edu.osu.cse5234.business.view.Item;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import javax.ejb.Stateless;
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 
 /**
  * Session Bean implementation class InventoryServiceBean
@@ -15,6 +17,11 @@ import javax.ejb.Stateless;
 @Stateless
 public class InventoryServiceBean implements InventoryService {
 
+	public static final String MY_QUERY = "Select i from Item i";
+	
+	@PersistenceContext
+	private EntityManager entityManager;
+	
     /**
      * Default constructor. 
      */
@@ -22,17 +29,17 @@ public class InventoryServiceBean implements InventoryService {
         // TODO Auto-generated constructor stub
     }
 
-    @Override
+    public EntityManager getEntityManager() {
+		return entityManager;
+	}
+
+	public void setEntityManager(EntityManager entityManager) {
+		this.entityManager = entityManager;
+	}
+
+	@Override
     public Inventory getAvailableInventory() {
-    	String[] gums = { "Bubble", "Spearmint", "Peppermint", "Wintergreen", "Cinnamon" };
-    	List<Item> items = new ArrayList<Item>();
-    	for (int i = 0; i < 5; i++) {
-    		Item item = new Item();
-    		item.setName(gums[i]);
-    		item.setPrice(i + .5);
-    		item.setQuantity((i / 3) + 1);
-    		items.add(item);
-    	}
+    	List<Item> items = entityManager.createQuery(MY_QUERY, Item.class).getResultList();
     	Inventory inventory = new Inventory();
     	inventory.setItemList(items);
     	return inventory;
@@ -40,6 +47,17 @@ public class InventoryServiceBean implements InventoryService {
 	
     @Override
 	public boolean validateQuantity(List<Item> items) {
+    	HashMap<Integer, Integer> stock = new HashMap<Integer, Integer>();
+    	Inventory inventory = getAvailableInventory();
+    	for (Item availableItem : inventory.getItemList()) {
+    		stock.put(availableItem.getItemNumber(), availableItem.getAvailableQuantity());
+    	}
+    	if (items == null || items.size() == 0) return false;
+    	for (Item item : items) {
+    		if (item.getQuantity() > stock.getOrDefault(item.getItemNumber(), 0)) {
+    			return false;
+    		}
+    	}
 		return true;
 	}
 	
